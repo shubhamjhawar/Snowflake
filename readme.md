@@ -1,7 +1,5 @@
 # Snowflake_Assignment
-
-The `Snowflake_Assignment.sql` contains all the sql statements, which i ran for solving various queries in `snowsight`.
-Please note that `Snowflake_Assignment.sql` doesnot contain all the commands as we have ran some commands from `snowsql`(These were alson present in `Snowflake_Assignment.sql` file but they are commented with tag "This must be run from snowsight").
+Please note that `Snowflake_ass.sql` doesnot contain all the commands as we have ran some commands from `snowsql`(These were alson present in `Snowflake_ass.sql` file but they are commented with tag "This must be run from snowsight").
 
 The commands, approach and datasets to various queries are as explained below -
 
@@ -104,7 +102,7 @@ We have downloaded a .CSV file from online and description of dataset is as belo
 
 The below is snapshot of the .csv file.
 
-<img width="767" alt="Screenshot 2023-04-09 at 11 49 18 AM" src="https://user-images.githubusercontent.com/123494344/230757867-92ebcf9f-e032-4fc1-b246-b5b4e17a6bbc.png">
+<img width="767" alt="Screenshot 2023-04-09 at 11 49 18 AM" src="">
 
 As we need to create a table , so we need to run the `CREATE TABLE` command. The below is the code snippet which does the above said things with required additional columns and hardcoded data.
 
@@ -143,6 +141,8 @@ FROM @%employee_variant_table file_format = json_format;
 
 select * from employee_variant_table;
 
+<!-- PUT file:///Users/shubhamjhawar/Downloads/final.json @%EMPLOYEE_VARIANT_TABLE; -->
+
 ```
 
 <img width="907" alt="Screenshot 2023-04-08 at 7 48 57 PM" src="https://user-images.githubusercontent.com/123494344/230758111-236a2712-f39f-47cb-a3b8-9f086d12a999.png">
@@ -170,9 +170,11 @@ CREATE OR REPLACE FILE FORMAT mycsvformat
   FIELD_DELIMITER = ','
   SKIP_HEADER = 1;
 
-COPY INTO employees
-FROM @%employees file_format = mycsvformat;
 
+CREATE OR REPLACE STAGE my_stage
+  FILE_FORMAT = mycsvformat;
+
+<!-- PUT file:///Users/shubhamjhawar/Downloads/final.csv @my_stage; -->
 
 ```
 
@@ -341,21 +343,12 @@ The below is snapshot of the .parquet file.
 <img width="1440" alt="Screenshot 2023-04-09 at 12 47 21 PM" src="https://user-images.githubusercontent.com/123494344/230759757-f1508c8b-dd1e-4107-9d2c-80faae01bacd.png">
 
 We created a file format called my_parquet_format which holds data of format csv. The below is the code snippet which does the above said things.
-
 ```
 CREATE FILE FORMAT my_parquet_format TYPE = parquet;
-```
+CREATE STAGE stage_for_parquet file_format = my_parquet_format;
 
-We created a stage called parquet_stage with holding my_parquet_format file format. The below is the code snippet which does the above said things.
+<!-- PUT file:///Users/shubhamjhawar/Downloads/final.parquet @stage_for_parquet; -->
 
-```
-CREATE STAGE parquet_stage file_format = my_parquet_format;
-```
-
-We need to put data in the table stage, as data is in local we need to run the command from snowsql. The below is the code snippet which does the above said things.
-
-```
-put file://~/Desktop/employee.parquet @parquet_stage;
 ```
 
 The below is the snapshot of success messsage.
@@ -364,15 +357,7 @@ The below is the snapshot of success messsage.
 
 Query to Infer about the schema, The below is the code snippet which does the above said things.
 
-```
-SELECT *
-  FROM TABLE(
-    INFER_SCHEMA(
-      LOCATION=>'@parquet_stage'
-      , FILE_FORMAT=>'my_parquet_format'
-      )
-    );
-```
+
 
 The below is the snapshot of INFER SCHEMA.
 
@@ -387,7 +372,7 @@ Run a select query on the staged parquet file without loading it to a snowflake 
 We are running a select query on the staged parquet file without loading it to a snowflake table. The below is the code snippet which does the above said things.
 
 ```
-SELECT * from @parquet_stage/employee.parquet;
+select * from @stage_for_parquet/final.parquet;
 ```
 
 The below is the snapshot of fetched result.
@@ -398,146 +383,3 @@ The below is the snapshot of fetched result.
 
 Add masking policy to the PII columns such that fields like email, phone number, etc. show as **masked** to a user with the developer role. If the role is PII the value of these columns should be visible.
 
-### Approach -
-
-We are creating masking policy for given constraints. The below is the code snippet which does the above said things.
-
-#### - `email_mask`
-
-```
-CREATE OR REPLACE MASKING POLICY email_mask AS (VAL string) RETURNS string ->
-CASE
-WHEN CURRENT_ROLE() = 'PII' THEN VAL
-ELSE '****MASK****'
-END;
-```
-
-#### - `contact_mask`
-
-```
-CREATE OR REPLACE MASKING POLICY contact_Mask AS (VAL string) RETURNS string ->
-CASE
-WHEN CURRENT_ROLE() = 'PII' THEN VAL
-ELSE '****MASK****'
-END;
-```
-
-The policies are implemented using a CASE statement that checks the current role and returns either the original value or a masked value.
-
-As we have created the policies, we need to apply those policies to table by altering them. The below is the code snippet which does the above said things.
-
-```
--- Adding the email_mask policy to employee_internal_stage
-ALTER TABLE IF EXISTS employee_internal_stage
-MODIFY EMAIL SET MASKING POLICY email_mask;
-
--- Adding the email_mask policy to employee_external_stage
-ALTER TABLE IF EXISTS employee_external_stage
-MODIFY EMAIL SET MASKING POLICY email_mask;
-
--- Adding the contact_mask policy to employee_internal_stage
-ALTER TABLE IF EXISTS employee_internal_stage
-MODIFY contact_no SET MASKING POLICY contact_mask;
-
--- Adding the conatct_mask policy to employee_external_stage
-ALTER TABLE IF EXISTS employee_external_stage
-MODIFY contact_no SET MASKING POLICY contact_mask;
-```
-
-TO verify whether masking was applied correctly or not, We need to display data being in different roles.
-
-- #### Admin role
-
-As now we are in admin role, displaying data being in that role.
-
-```
-SELECT * FROM employee_internal_stage LIMIT 10;
-```
-
-The below is the snapshot of fetched result.
-
-<img width="1336" alt="Screenshot 2023-04-09 at 1 03 56 PM" src="https://user-images.githubusercontent.com/123494344/230760319-8c506a59-90a1-44b1-9388-45f6a8a5790c.png">
-
-```
-SELECT * FROM employee_external_stage LIMIT 10;
-```
-
-The below is the snapshot of fetched result.
-
-<img width="1346" alt="Screenshot 2023-04-09 at 1 04 41 PM" src="https://user-images.githubusercontent.com/123494344/230760324-ec7806c2-0b2b-4f36-9d58-e517e8e504e9.png">
-
-- #### PII role
-
-As we need to display data from PII view, we need to grant certain previlages to `PII` role, for this we need to switch to `ACCOUNTADMIN` role.
-
-```
--- Switching the role
-USE ROLE ACCOUNTADMIN;
--- Granting required previlages to role developer
-GRANT ALL PRIVILEGES ON WAREHOUSE assignment_wh TO ROLE PII;
-GRANT USAGE ON DATABASE ASSIGNMENT_DB TO ROLE PII;
-GRANT USAGE ON SCHEMA ASSIGNMENT_DB.MY_SCHEMA TO ROLE PII;
-GRANT SELECT ON TABLE assignment_db.my_schema.employee_internal_stage TO ROLE PII;
-GRANT SELECT ON TABLE assignment_db.my_schema.employee_external_stage TO ROLE PII;
-USE ROLE PII; -- using the role PII
-```
-
-Now we are in the PII role, so to display the data
-
-```
-SELECT * FROM employee_internal_stage LIMIT 10;
-```
-
-The below is the snapshot of fetched result.
-
-<img width="1429" alt="Screenshot 2023-04-09 at 1 09 01 PM" src="https://user-images.githubusercontent.com/123494344/230760481-2eb708bc-e64a-452c-a6fc-db2885bf4e8d.png">
-
-```
-SELECT * FROM employee_external_stage LIMIT 10;
-```
-
-The below is the snapshot of fetched result.
-
-<img width="1431" alt="Screenshot 2023-04-09 at 1 09 44 PM" src="https://user-images.githubusercontent.com/123494344/230760511-68828270-f8db-49ac-a565-fa02633413a8.png">
-
-- #### Developer role
-
-As we need to display data from Developer view, we need to grant certain previlages to `Developer` role, for this we need to switch to `ACCOUNTADMIN` role.
-
-```
--- Switching the role
-USE ROLE ACCOUNTADMIN;
--- Granting required previlages to role developer
-GRANT ALL PRIVILEGES ON WAREHOUSE assignment_wh TO ROLE DEVELOPER;
-GRANT USAGE ON DATABASE ASSIGNMENT_DB TO ROLE DEVELOPER;
-GRANT USAGE ON SCHEMA ASSIGNMENT_DB.MY_SCHEMA TO ROLE DEVELOPER;
-GRANT SELECT ON TABLE assignment_db.my_schema.employee_internal_stage TO ROLE DEVELOPER;
-GRANT SELECT ON TABLE assignment_db.my_schema.employee_external_stage TO ROLE DEVELOPER;
-USE ROLE DEVELOPER; -- using the role Developer
-```
-
-Now we are in the Developer role, so to display the data
-
-```
-SELECT * FROM employee_internal_stage LIMIT 10;
-```
-
-The below is the snapshot of fetched result.
-
-<img width="1335" alt="Screenshot 2023-04-09 at 1 11 50 PM" src="https://user-images.githubusercontent.com/123494344/230760595-abc0c315-eaf4-404c-a999-b69db86a2e5f.png">
-
-```
-SELECT * FROM employee_external_stage LIMIT 10;
-```
-
-The below is the snapshot of fetched result.
-
-<img width="1341" alt="Screenshot 2023-04-09 at 1 12 07 PM" src="https://user-images.githubusercontent.com/123494344/230760619-8f5d5951-2378-4b96-8eb6-1048ad0baab8.png">
-
-### Snapshot of Role and Trust relationship
-
-<img width="1178" alt="Screenshot 2023-04-09 at 2 34 03 PM" src="https://user-images.githubusercontent.com/123494344/230764588-7f5f5d15-8ce6-409d-9d23-73220d150a46.png">
-
-### Snapshot of Bucket
-
-<img width="1109" alt="Screenshot 2023-04-09 at 2 35 31 PM" src="https://user-images.githubusercontent.com/123494344/230764604-81430b53-e992-4056-aabb-ee8a0dd76fc7.png">

@@ -147,9 +147,8 @@ select * from employee_variant_table;
 
 <img width="907" alt="Screenshot 2023-04-08 at 7 48 57 PM" src="https://user-images.githubusercontent.com/123494344/230758111-236a2712-f39f-47cb-a3b8-9f086d12a999.png">
 
-<img width="1110" alt="Screenshot 2023-04-08 at 7 50 14 PM" src="https://user-images.githubusercontent.com/123494344/230758160-43394601-a277-4257-a519-4234fc917fa4.png">
+<img width="1110" alt="Screenshot 2023-04-08 at 7 50 14 PM" src="https://github.com/shubhamjhawar/Snowflake/blob/master/data/jsondataselect.png">
 
-<img width="1106" alt="Screenshot 2023-04-08 at 7 50 56 PM" src="https://user-images.githubusercontent.com/123494344/230758387-7bb1678a-f1e2-426c-841a-b7e7aae135b0.png">
 
 ### Question - 8
 

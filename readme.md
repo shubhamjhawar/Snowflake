@@ -192,28 +192,8 @@ As said earlier, before creating the external stage we will first create the aws
 1. We created a storage integration object called s3_integration with holding s3 storage provider. The below is the code snippet which does the above said things.
 
 ```
-CREATE STORAGE INTEGRATION s3_integration
-type = external_stage
-storage_provider = s3
-enabled = true
-storage_aws_role_arn = 'arn:aws:iam::366068070173:role/s3_chakradhar'
-storage_allowed_locations = ('s3://assignment-snowflake/csv/employee.csv');
-```
 
-- The above line `storage_aws_role_arn = 'arn:aws:iam::366068070173:role/s3_chakradhar'` is the arn for role created in the aws via AWS MANGMENT CONSOLE.
 
-- The above line `storage_allowed_locations = 's3://assignment-snowflake/csv/employee.csv'` is the path to the AWS S3 Bucket created via AWS MANGMENT CONSOLE.
-
-2. As we are working on admin role, we grant all on integration object. The below is the code snippet which does the above said things.
-
-```
-GRANT ALL ON INTEGRATION s3_integration TO ROLE admin;
-```
-
-3. Describing Integration object to arrange a relatoinship between aws and snowflake, which gives us the external_id and arn for role. The below is the code snippet which does the above said things.
-
-```
-DESC INTEGRATION s3_integration;
 ```
 
 The below are details of imtegration object created above -

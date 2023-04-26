@@ -87,13 +87,54 @@ SELECT $1, $2, $3 , $4 , $5
 FROM '@my_stage/final.csv';
 
 
-COPY INTO EMPLOYEES_INTERNAL_STAGE(name,email,country,region,ID,elt_ts,elt_by,file_name)
+CREATE OR REPLACE TABLE EMPLOYEE_INTERNAL_STAGE(
+ID NUMBER,
+NAME VARCHAR(255),
+EMAIL VARCHAR(255),
+COUNTRY VARCHAR(255),
+REGION VARCHAR(255),
+elt_ts TIMESTAMP default current_timestamp(),
+elt_by varchar default 'snow',
+file_name varchar default 'assignment'
+);
+
+COPY INTO EMPLOYEE_INTERNAL_STAGE(name,email,country,region,ID,elt_ts,elt_by,file_name)
 FROM (select $1, $2, $3 , $4 , $5,CURRENT_TIMESTAMP(),'snow','assignment' from @my_stage/final.csv)
 FILE_FORMAT = mycsvformat;
 
 
-select * from employees_internal_stage;
+select * from employee_internal_stage;
 
+
+CREATE OR REPLACE TABLE EMPLOYEE_EXTERNAL_STAGE(
+ID NUMBER,
+NAME VARCHAR(255),
+EMAIL VARCHAR(255),
+COUNTRY VARCHAR(255),
+REGION VARCHAR(255),
+elt_ts TIMESTAMP default current_timestamp(),
+elt_by varchar default 'snow',
+file_name varchar default 'assignment'
+);
+
+DESC INTEGRATION s3_integration;
+
+
+CREATE STORAGE INTEGRATION s3_integration type = external_stage storage_provider = s3 enabled = true storage_aws_role_arn = 'arn:aws:iam::574344495913:role/snowflake-role' storage_allowed_locations = ('s3://snowflakeshubham/final.csv');
+
+
+GRANT ALL ON INTEGRATION s3_integration TO ROLE admin;
+
+CREATE OR REPLACE STAGE external_stage URL = 's3://snowflakeshubham/final.csv' STORAGE_INTEGRATION = s3_integration FILE_FORMAT = mycsvformat;
+
+
+LIST @external_stage;
+
+COPY INTO EMPLOYEE_EXTERNAL_STAGE
+FROM (select * from @external_stage)
+FILE_FORMAT = mycsvformat;
+
+select * from EMPLOYEE_EXTERNAL_STAGE;
 
 -- Question - 10 and 11
 -- Upload any parquet file to the stage location and infer the schema of the file.

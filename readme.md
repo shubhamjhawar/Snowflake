@@ -102,23 +102,38 @@ We have downloaded a .CSV file from online and description of dataset is as belo
 
 The below is snapshot of the .csv file.
 
-<img width="767" alt="Screenshot 2023-04-09 at 11 49 18 AM" src="">
+
+<img width="680" alt="csvfile" src="https://user-images.githubusercontent.com/66582610/233616132-af59696d-236a-4cf8-8e66-0ad443caeedb.png">
+
 
 As we need to create a table , so we need to run the `CREATE TABLE` command. The below is the code snippet which does the above said things with required additional columns and hardcoded data.
 
 ```
-CREATE TABLE EMPLOYEE_DATA (
-  ID NUMBER,
-  FIRST_NAME VARCHAR(255),
-  LAST_NAME VARCHAR(255),
-  EMAIL VARCHAR(255),
-  DEPARTMENT VARCHAR(255),
-  MOBILE_NUMBER VARCHAR(255),
-  CITY VARCHAR(255),
-  etl_ts timestamp default current_timestamp(), -- for getting the time at which the record is getting inserted
-  etl_by varchar default 'snowsight',-- for getting application name from which the record was inserted
-  file_name varchar -- for getting the name of the file used to insert data into the table.
+
+CREATE OR REPLACE TABLE EMPLOYEE(
+ID NUMBER,
+NAME VARCHAR(255),
+EMAIL VARCHAR(255),
+COUNTRY VARCHAR(255),
+REGION VARCHAR(255),
+elt_ts TIMESTAMP default current_timestamp(),
+elt_by varchar default 'snow',
+file_name varchar default 'assignment'
 );
+
+CREATE OR REPLACE FILE FORMAT mycsvformat
+  TYPE = 'CSV'
+  FIELD_DELIMITER = ','
+  SKIP_HEADER = 1;
+
+COPY INTO EMPLOYEE(name,email,country,region,ID,elt_ts,elt_by,file_name)
+FROM (select $1, $2, $3 , $4 , $5,CURRENT_TIMESTAMP(),'snow','assignment' from @%EMPLOYEE)
+FILE_FORMAT = mycsvformat;
+
+
+
+select * from employee;
+
 ```
 
 ### Question - 7
@@ -145,9 +160,9 @@ select * from employee_variant_table;
 
 ```
 
-<img width="907" alt="Screenshot 2023-04-08 at 7 48 57 PM" src="https://user-images.githubusercontent.com/123494344/230758111-236a2712-f39f-47cb-a3b8-9f086d12a999.png">
+<img width="925" alt="json" src="https://user-images.githubusercontent.com/66582610/233615655-b8fe1e86-e7d8-4d10-add1-49435f6a87fe.png">
 
-<img width="1110" alt="Screenshot 2023-04-08 at 7 50 14 PM" src="https://github.com/shubhamjhawar/Snowflake/blob/master/data/jsondataselect.png">
+<img width="907" alt="jsondataselect" src="https://user-images.githubusercontent.com/66582610/233615440-32ebb425-f103-4435-9fc3-58deb5fa4f37.png">
 
 
 ### Question - 8
@@ -192,43 +207,36 @@ As said earlier, before creating the external stage we will first create the aws
 1. We created a storage integration object called s3_integration with holding s3 storage provider. The below is the code snippet which does the above said things.
 
 ```
+CREATE STORAGE INTEGRATION s3_integration type = external_stage storage_provider = s3 enabled = true storage_aws_role_arn = 'arn:aws:iam::574344495913:role/snowflake-role' storage_allowed_locations = ('s3://snowflakeshubham/final.csv');
+```
+
+- The above line `arn:aws:iam::574344495913:role/snowflake-role` is the arn for role created in the aws via AWS MANGMENT CONSOLE.
 
 
+2. As we are working on admin role, we grant all on integration object. The below is the code snippet which does the above said things.
+
+```
+GRANT ALL ON INTEGRATION s3_integration TO ROLE admin;
+```
+
+3. Describing Integration object to arrange a relatoinship between aws and snowflake, which gives us the external_id and arn for role. The below is the code snippet which does the above said things.
+
+```
+DESC INTEGRATION s3_integration;
 ```
 
 The below are details of imtegration object created above -
 
-<img width="1118" alt="Screenshot 2023-04-08 at 7 55 23 PM" src="https://user-images.githubusercontent.com/123494344/230758888-446648a9-6644-479c-acd7-fbd6a823a699.png">
+<img width="876" alt="S3INTEGRATION" src="https://user-images.githubusercontent.com/66582610/234758039-785f2e20-2be5-4246-abf2-c5b87f8868d6.png">
 
 Now the credential such as (STORAGE_AWS_IAM_USER_ARN, STORAGE_AWS_EXTERNAL_ID) obtained from running the above command will be used to edit the Trust Relationships in the role created in the AWS, so as it will ensure proper authentication and establish the trust relationship with the AWS.
 
 4. We created a external stage called external_stage with holding my_csv_format file format and s3 bucket url. The below is the code snippet which does the above said things.
 
 ```
-CREATE OR REPLACE STAGE external_stage
-URL = 's3://assignment-snowflake/csv/employee.csv'
-STORAGE_INTEGRATION = s3_integration
-FILE_FORMAT = my_csv_format;
-```
-
-#### Listing both the files, for checking whether data was loaded correctly or not.
+CREATE OR REPLACE STAGE external_stage URL = 's3://snowflakeshubham/final.csv' STORAGE_INTEGRATION = s3_integration FILE_FORMAT = mycsvformat;
 
 ```
-LIST @internal_stage;
-```
-
-The below is the snapshot of success messsage.
-
-<img width="1347" alt="Screenshot 2023-04-09 at 12 25 33 PM" src="https://user-images.githubusercontent.com/123494344/230758994-d18986f8-1735-44e9-8416-f8363e1338b9.png">
-
-```
-LIST @external_stage;
-```
-
-The below is the snapshot of success messsage.
-
-<img width="1109" alt="Screenshot 2023-04-08 at 8 04 08 PM" src="https://user-images.githubusercontent.com/123494344/230762714-16aa203b-5d38-42d3-b43c-a6d3f29628a1.png">
-
 ### Question - 9
 
 Load data into the tables using copy into statements. In one table load from the internal stage and in another from the external
@@ -238,18 +246,22 @@ Load data into the tables using copy into statements. In one table load from the
 We need to create table employee_internal_stage for loading employee data from internal stage. The below is the code snippet which does the above said things.
 
 ```
-CREATE TABLE employee_internal_stage (
-  ID NUMBER,
-  FIRST_NAME VARCHAR(255),
-  LAST_NAME VARCHAR(255),
-  EMAIL VARCHAR(255),
-  DEPARTMENT VARCHAR(255),
-  CONTACT_NO VARCHAR(255),
-  CITY VARCHAR(255),
-  etl_ts timestamp default current_timestamp(), -- for getting the time at which the record is getting inserted
-  etl_by varchar default 'snowsight', -- for getting application name from which the record was inserted
-  file_name varchar -- for getting the name of the file used to insert data into the table.
+CREATE OR REPLACE TABLE EMPLOYEE_INTERNAL_STAGE(
+ID NUMBER,
+NAME VARCHAR(255),
+EMAIL VARCHAR(255),
+COUNTRY VARCHAR(255),
+REGION VARCHAR(255),
+elt_ts TIMESTAMP default current_timestamp(),
+elt_by varchar default 'snow',
+file_name varchar default 'assignment'
 );
+
+COPY INTO EMPLOYEE_INTERNAL_STAGE(name,email,country,region,ID,elt_ts,elt_by,file_name)
+FROM (select $1, $2, $3 , $4 , $5,CURRENT_TIMESTAMP(),'snow','assignment' from @my_stage/final.csv)
+FILE_FORMAT = mycsvformat
+);
+
 ```
 
 We need to create table employee_internal_stage for loading employee data from external stage. The below is the code snippet which does the above said things.
@@ -272,43 +284,30 @@ CREATE TABLE employee_external_stage (
 As we need to copy data into respective table from corresponding stages and we are fetching the table data using metadata function. The below is the code snippet which does the above said things.
 
 ```
-COPY INTO employee_internal_stage(id, first_name,last_name,email,department,contact_no ,city,file_name)
-FROM (
-SELECT emp.$1, emp.$2, emp.$3, emp.$4, emp.$5, emp.$6, emp.$7, METADATA$FILENAME
-FROM @internal_stage/employee.csv.gz (file_format => my_csv_format) emp);
-```
+COPY INTO EMPLOYEE_EXTERNAL_STAGE
+FROM (select * from @external_stage)
+FILE_FORMAT = mycsvformat;
 
-Here we are directly quering from the internal stage, so we need to follow some predefined convention of using $1,$2 and so on to fetch the column values and also to get the name of the file through which the data is loaded we are quering the metadata which the snowflake maintains internally for the staging areas through the command METADATA$FILENAME.
-
-As we need to copy data into respective table from corresponding stages and we are fetching the table data using metadata function. The below is the code snippet which does the above said things.
 
 ```
-COPY INTO employee_external_stage(id, first_name,last_name,email,department,contact_no ,city,file_name)
-FROM (
-SELECT emp.$1, emp.$2, emp.$3, emp.$4, emp.$5, emp.$6, emp.$7, METADATA$FILENAME
-FROM @external_stage (file_format => my_csv_format) emp);
-```
-
-Here we are directly quering from the internal stage, so we need to follow some predefined convention of using $1,$2 and so on to fetch the column values and also to get the name of the file through which the data is loaded we are quering the metadata which the snowflake maintains internally for the staging areas through the command METADATA$FILENAME.
-
-To verify, Displaying the employee data to check whether they are loaded or not.
+## THE RESULTINGF DATA WHICH OCCURED IS ATTACHED BELOW -
 
 ```
-select * from employee_internal_stage limit 10;
+select * from employee_internal_stage;
 ```
 
 The below is the snapshot of fetched rows.
 
-<img width="1440" alt="Screenshot 2023-04-08 at 8 15 16 PM" src="https://user-images.githubusercontent.com/123494344/230759503-cb9b3198-af1c-49d1-b112-baff7bbfde2a.png">
+<img width="803" alt="INTERNALSTAGESSV" src="https://user-images.githubusercontent.com/66582610/234758826-7b4d6cbc-d0a9-41de-95b9-2017b4a3bf20.png">
+
 
 ```
-select * from employee_external_stage limit 10;
+select * from employee_external_stage ;
 ```
 
 The below is the snapshot of fetched rows.
 
-<img width="1440" alt="Screenshot 2023-04-08 at 8 15 33 PM" src="https://user-images.githubusercontent.com/123494344/230759510-9ae7db62-60d4-4d28-bb83-4b922ef06c86.png">
-
+<img width="766" alt="EXTERNALSTAGECSV" src="https://user-images.githubusercontent.com/66582610/234758897-3529fb48-bfcf-4021-9a2d-4a0b40e22b3f.png">
 ### Question - 10
 
 Upload any parquet file to the stage location and infer the schema of the file.
@@ -360,5 +359,75 @@ The below is the snapshot of fetched result.
 
 ### Question - 12
 
-Add masking policy to the PII columns such that fields like email, phone number, etc. show as **masked** to a user with the developer role. If the role is PII the value of these columns should be visible.
+Add masking policy to the PII columns such that fields like email etc. show as **masked** to a user with the developer role. If the role is PII the value of these columns should be visible.
+
+
+```
+
+USE ROLE "ACCOUNTADMIN";
+
+CREATE OR REPLACE MASKING POLICY email_masks AS (val string) RETURNS string ->
+  CASE
+    WHEN CURRENT_ROLE() IN ('DEVELOPER') THEN '***'
+    ELSE val
+  END;
+
+ALTER TABLE IF EXISTS employee MODIFY COLUMN email SET MASKING POLICY email_masks;
+
+
+
+```
+
+### FOR THE ROLE DEVELOPER
+
+```
+----------------------------FOR THE DEVLOPER ROLE 
+USE ROLE "ACCOUNTADMIN";
+GRANT ALL PRIVILEGES ON WAREHOUSE assignment_wh TO ROLE "DEVELOPER";
+GRANT USAGE ON DATABASE ASSIGNMENT_DB TO ROLE "DEVELOPER";
+GRANT USAGE ON SCHEMA "MY_SCHEMA" TO ROLE "DEVELOPER";
+GRANT SELECT ON TABLE assignment_db.my_schema.employee TO ROLE "DEVELOPER";
+
+USE ROLE "DEVELOPER";
+select * from employee;
+
+
+```
+
+<img width="766" alt="MASKING" src="https://user-images.githubusercontent.com/66582610/234759601-4031b55a-1550-4d6d-9439-de71a14eecd9.png">
+
+
+
+#
+#
+
+### FOR THE ROLE PII
+
+``` 
+USE ROLE "ACCOUNTADMIN";
+GRANT ALL PRIVILEGES ON WAREHOUSE assignment_wh TO ROLE "PII";
+GRANT USAGE ON DATABASE ASSIGNMENT_DB TO ROLE "PII";
+GRANT USAGE ON SCHEMA "MY_SCHEMA" TO ROLE "PII";
+GRANT SELECT ON TABLE assignment_db.my_schema.employee TO ROLE "PII";
+
+USE ROLE "PII";
+select * from employee;
+
+```
+
+
+<img width="820" alt="NOTMASKEDPII" src="https://user-images.githubusercontent.com/66582610/234759810-d48177b0-2f6e-4a45-a658-d72f0959f904.png">
+
+
+#
+#
+
+### FOR THE ROLE ADMIN
+
+````
+USE ROLE "ADMIN";
+select * from employee;
+
+````
+<img width="738" alt="NOTMASKED" src="https://user-images.githubusercontent.com/66582610/234759630-72e4db1d-6baf-421d-8cb1-3bc91efd3922.png">
 
